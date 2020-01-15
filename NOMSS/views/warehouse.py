@@ -3,11 +3,20 @@ from flask_restplus import Namespace, Resource, fields
 
 warehouse_api = Namespace('warehouse', description='Warehouse order fulfilment endpoint(s)')
 
+# This allows us to validate our input for the fulfilment endpoint.
+# Data must be a list of integers representing order_ids
 _fulfilment = warehouse_api.model('Fulfilment', {
     'order_ids': fields.List(
         fields.Integer,
         required=True,
         description="An array of Order IDs to process orders for fulfilment and shipping."
+    )
+})
+
+_check_order = warehouse_api.model("Check_Order", {
+    'order_id': fields.Integer(
+        required=True,
+        description="A single order_id to check the status of."
     )
 })
 
@@ -188,3 +197,23 @@ class Fulfilment(Resource):
 
         # If there was sufficient stock was available for all products the order will be executed.
         return True
+
+
+@warehouse_api.route('/check_order')
+class CheckOrder(Resource):
+    @warehouse_api.expect(_check_order)
+    def post(self):
+        database_orders = [order for order in DATA["orders"]]
+
+        request_data = request.get_json()
+        order_id = request_data["order_id"] or []
+
+        this_order = next((order for order in database_orders if order['orderId'] == order_id), None)
+        order_status = 'Order does not exist'
+
+        if this_order:
+            order_status = this_order['status']
+
+        return {
+            'order_status': order_status
+        }
