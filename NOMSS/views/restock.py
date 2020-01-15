@@ -11,19 +11,20 @@ _restock = restock_api.model('Restock', {
 })
 
 # this list is used to imitate a database in a very simple way. Persists until server restarted.
-RESTOCK_ORDERS = []
+RESTOCK_ORDER_IDS = []
 
 @restock_api.route('/restock')
 class Restock(Resource):
     @restock_api.expect(_restock, validate=True)
     def post(self):
         data = request.get_json()
+        p_id = data['product_id']
+
+        RESTOCK_ORDER_IDS.append(p_id)
+
         return {
-            "restock_order_created": data['product_id']
+            "restock_order_created": p_id
         }
 
-
-@restock_api.route('/check_restocks')
-class CheckRestocks(Resource):
     def get(self):
-        return {"current_restock_orders": RESTOCK_ORDERS}
+        return {"current_restock_orders": RESTOCK_ORDER_IDS}
