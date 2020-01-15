@@ -10,3 +10,9 @@ _fulfilment = warehouse_api.model('Fulfilment', {
         description="An array of Order IDs to process orders for fulfilment and shipping."
     )
 })
+
+@warehouse_api.route('/fulfilment')
+class Fulfilment(Resource):
+    @warehouse_api.expect(_fulfilment, validate=True)
+    def post(self):
+        pass

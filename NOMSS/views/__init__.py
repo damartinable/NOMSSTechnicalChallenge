@@ -3,6 +3,7 @@ from flask_restplus import Api
 from flask import Blueprint
 
 from .warehouse import warehouse_api
+from .restock import restock_api
 
 base_blueprint = Blueprint('api', __name__)
 
@@ -14,3 +15,4 @@ base_api = Api(
 )
 
 base_api.add_namespace(warehouse_api)
+base_api.add_namespace(restock_api)
