@@ -1,18 +1,4 @@
-from flask import request
-from flask_restplus import Namespace, Resource, fields
-
-warehouse_api = Namespace('warehouse', description='Warehouse order fulfilment endpoint(s)')
-
-_fulfilment = warehouse_api.model('Fulfilment', {
-    'order_ids': fields.List(
-        fields.Integer,
-        required=True,
-        description="An array of Order IDs to process orders for fulfilment and shipping."
-    )
-})
-
-# Temporarily adding the data.json content for ease of development
-DATA = {
+{
   "products": [
     {
       "productId": 1,
@@ -130,22 +116,3 @@ DATA = {
     }
   ]
 }
-
-
-@warehouse_api.route('/fulfilment')
-class Fulfilment(Resource):
-    @warehouse_api.expect(_fulfilment, validate=True)
-    def post(self):
-        # Creating the orders and products per request. Further development would see
-        # this become part of a proper database system
-        data_orders = [order for order in DATA["orders"]]
-        data_products = [product for product in DATA["products"]]
-
-        # Get the order_id's from the request. We know this is a list of integers thanks to the flask_restplus
-        # validation of the inputs
-        request_data = request.get_json()
-        order_ids = request_data["order_ids"]
-
-        return {
-            "order_ids": order_ids
-        }
