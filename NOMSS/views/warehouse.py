@@ -1,3 +1,6 @@
+import json
+import os
+
 from flask import request
 from flask_restplus import Namespace, Resource, fields
 
@@ -20,136 +23,14 @@ _check_order = warehouse_api.model("Check_Order", {
     )
 })
 
-# Temporarily adding the data.json content for ease of development
-DATA = {
-  "products": [
-    {
-      "productId": 1,
-      "description": "Small Widget",
-      "quantityOnHand": 50,
-      "reorderThreshold": 10,
-      "reorderAmount": 50,
-      "deliveryLeadTime": 5
-    },
-    {
-      "productId": 2,
-      "description": "Medium Widget",
-      "quantityOnHand": 10,
-      "reorderThreshold": 10,
-      "reorderAmount": 10,
-      "deliveryLeadTime": 5
-    },
-    {
-      "productId": 3,
-      "description": "Large Widget",
-      "quantityOnHand": 0,
-      "reorderThreshold": 10,
-      "reorderAmount": 20,
-      "deliveryLeadTime": 5
-    }
-  ],
-  "orders": [
-    {
-      "orderId": 1122,
-      "status": "Pending",
-      "dateCreated": "2018-05-09 10:59",
-      "items": [
-        {
-          "orderId": 1122,
-          "productId": 1,
-          "quantity": 4,
-          "costPerItem": 10.45
-        },
-        {
-          "orderId": 1122,
-          "productId": 2,
-          "quantity": 7,
-          "costPerItem": 20.95
-        }
-      ]
-    },
-    {
-      "orderId": 1123,
-      "status": "Pending",
-      "dateCreated": "2018-05-09 14:21",
-      "items": [
-        {
-          "orderId": 1123,
-          "productId": 1,
-          "quantity": 4,
-          "costPerItem": 10.45
-        },
-        {
-          "orderId": 1123,
-          "productId": 2,
-          "quantity": 3,
-          "costPerItem": 20.95
-        },
-        {
-          "orderId": 1123,
-          "productId": 3,
-          "quantity": 5,
-          "costPerItem": 20.95
-        }
-      ]
-    },
-    {
-      "orderId": 1124,
-      "status": "Pending",
-      "dateCreated": "2018-05-09 14:22",
-      "items": [
-        {
-          "orderId": 1124,
-          "productId": 1,
-          "quantity": 1,
-          "costPerItem": 10.45
-        },
-        {
-          "orderId": 1124,
-          "productId": 2,
-          "quantity": 3,
-          "costPerItem": 20.95
-        }
-      ]
-    },
-    {
-      "orderId": 1125,
-      "status": "Pending",
-      "dateCreated": "2018-05-09 14:22",
-      "items": [
-        {
-          "orderId": 1125,
-          "productId": 1,
-          "quantity": 6,
-          "costPerItem": 10.45
-        },
-        {
-          "orderId": 1125,
-          "productId": 2,
-          "quantity": 8,
-          "costPerItem": 20.95
-        },
-        {
-          "orderId": 1125,
-          "productId": 3,
-          "quantity": 3,
-          "costPerItem": 20.95
-        }
-      ]
-    }
-  ]
-}
-
+DATA = json.load(open(os.path.realpath('NOMSS/data/data.json')))
+DATABASE_ORDERS = [order for order in DATA["orders"]]
+DATABASE_PRODUCTS = [product for product in DATA["products"]]
 
 @warehouse_api.route('/fulfilment')
 class Fulfilment(Resource):
     @warehouse_api.expect(_fulfilment, validate=True)
     def post(self):
-        # Creating the orders and products per request. Further development would see
-        # this become part of a proper database system
-        database_orders = [order for order in DATA["orders"]]
-        database_products = [product for product in DATA["products"]]
-
         # Get the order_id's from the request. We know this is a list of integers thanks to the flask_restplus
         # validation of the inputs
         request_data = request.get_json()
@@ -161,7 +42,7 @@ class Fulfilment(Resource):
         for order_id in order_ids:
             # Attempt to process this order. If the order is fulfillable it is fulfilled, else it is appended to the
             # list of unfulfillable orders.
-            if not self.process_order(order_id, database_orders, database_products):
+            if not self.process_order(order_id, DATABASE_ORDERS, DATABASE_PRODUCTS):
                 unfulfilled_orders.append(order_id)
 
         return {
@@ -210,10 +91,11 @@ class Fulfilment(Resource):
             this_product = next((product for product in products if product['productId'] == desired_id), None)
             if this_product:
                 this_product['quantityOnHand'] -= desired_quantity
-                this_product['status'] = "Fulfilled"
+                order['status'] = "Fulfilled"
 
                 if this_product['quantityOnHand'] < this_product['reorderThreshold']:
                     self.restock_product(this_product)
+
         return True
 
     def restock_product(self, product):
@@ -225,12 +107,10 @@ class Fulfilment(Resource):
 class CheckOrder(Resource):
     @warehouse_api.expect(_check_order)
     def post(self):
-        database_orders = [order for order in DATA["orders"]]
-
         request_data = request.get_json()
         order_id = request_data["order_id"] or []
 
-        this_order = next((order for order in database_orders if order['orderId'] == order_id), None)
+        this_order = next((order for order in DATABASE_ORDERS if order['orderId'] == order_id), None)
         order_status = 'Order does not exist'
 
         if this_order:
