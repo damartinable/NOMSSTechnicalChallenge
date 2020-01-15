@@ -193,6 +193,9 @@ class Fulfilment(Resource):
             # If there is not enough stock for this order then the whole order is unfulfilled.
             # Return False and the order_id will be added to unfulfilled without the stock being subtracted.
             if this_product and this_product['quantityOnHand'] < desired_quantity:
+                # This any products are not sufficient the order is not fulfilled and the error message is set
+                order['status'] = "Error: Unfulfillable"
+
                 return False
 
         # If there was sufficient stock was available for all products the order will be executed.
