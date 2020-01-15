@@ -11,6 +11,7 @@ _restock = restock_api.model('Restock', {
 })
 
 # this list is used to imitate a database in a very simple way. Persists until server restarted.
+# Note that this should have been called purchase orders to better align with the challenge outline.
 RESTOCK_ORDER_IDS = []
 
 @restock_api.route('/restock')

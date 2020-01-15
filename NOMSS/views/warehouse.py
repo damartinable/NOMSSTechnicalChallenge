@@ -159,28 +159,28 @@ class Fulfilment(Resource):
         unfulfilled_orders = []
 
         for order_id in order_ids:
-            # Attempt to process this order. If return value is False the order_id could not be fulfilled
-            # and it is appended to the unfulfilled orders list
-            if not self.process_order_id(order_id, database_orders, database_products):
+            # Attempt to process this order. If the order is fulfillable it is fulfilled, else it is appended to the
+            # list of unfulfillable orders.
+            if not self.process_order(order_id, database_orders, database_products):
                 unfulfilled_orders.append(order_id)
 
         return {
             "unfulfillable": unfulfilled_orders
         }
 
-    def process_order_id(self, order_id, orders, products):
+    def process_order(self, order_id, orders, products):
         # Check that the order exists
         this_order = next((order for order in orders if order['orderId'] == order_id), None)
 
         if this_order:
             print("Order found:", this_order)
 
-            if self.all_products_available(this_order, products):
+            if self.check_products_and_fulfill(this_order, products):
                 return True
 
         return False
 
-    def all_products_available(self, order, products):
+    def check_products_and_fulfill(self, order, products):
         items = order["items"]
 
         for item in items:
@@ -199,7 +199,26 @@ class Fulfilment(Resource):
                 return False
 
         # If there was sufficient stock was available for all products the order will be executed.
+        # this part of the function is very similar to the above, not very DRY compliant. However it means we do not
+        # need to implement any kind of pending stock changes. No decrementing/restocking occurs unless all parts of the
+        # order can be fulfilled. This is to keep the design simpler since no partial orders are fulfilled.
+        for fulfill_item in items:
+            desired_id = fulfill_item['productId']
+            desired_quantity = fulfill_item['quantity']
+
+            # Retrieve this particular products details
+            this_product = next((product for product in products if product['productId'] == desired_id), None)
+            if this_product:
+                this_product['quantityOnHand'] -= desired_quantity
+                this_product['status'] = "Fulfilled"
+
+                if this_product['quantityOnHand'] < this_product['reorderThreshold']:
+                    self.restock_product(this_product)
         return True
+
+    def restock_product(self, product):
+        # Need to finalise this system.
+        print("Restock me:", product['productId'])
 
 
 @warehouse_api.route('/check_order')
