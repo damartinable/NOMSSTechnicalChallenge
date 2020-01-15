@@ -138,14 +138,53 @@ class Fulfilment(Resource):
     def post(self):
         # Creating the orders and products per request. Further development would see
         # this become part of a proper database system
-        data_orders = [order for order in DATA["orders"]]
-        data_products = [product for product in DATA["products"]]
+        database_orders = [order for order in DATA["orders"]]
+        database_products = [product for product in DATA["products"]]
 
         # Get the order_id's from the request. We know this is a list of integers thanks to the flask_restplus
         # validation of the inputs
         request_data = request.get_json()
-        order_ids = request_data["order_ids"]
+        order_ids = request_data["order_ids"] or []
+
+        # A list of unfulfillable orders
+        unfulfilled_orders = []
+
+        for order_id in order_ids:
+            # Attempt to process this order. If return value is False the order_id could not be fulfilled
+            # and it is appended to the unfulfilled orders list
+            if not self.process_order_id(order_id, database_orders, database_products):
+                unfulfilled_orders.append(order_id)
 
         return {
-            "order_ids": order_ids
+            "unfulfillable": unfulfilled_orders
         }
+
+    def process_order_id(self, order_id, orders, products):
+        # Check that the order exists
+        this_order = next((order for order in orders if order['orderId'] == order_id), None)
+
+        if this_order:
+            print("Order found:", this_order)
+
+            if self.all_products_available(this_order, products):
+                return True
+
+        return False
+
+    def all_products_available(self, order, products):
+        items = order["items"]
+
+        for item in items:
+            desired_id = item['productId']
+            desired_quantity = item['quantity']
+
+            # Retrieve this particular products details
+            this_product = next((product for product in products if product['productId'] == desired_id), None)
+
+            # If there is not enough stock for this order then the whole order is unfulfilled.
+            # Return False and the order_id will be added to unfulfilled without the stock being subtracted.
+            if this_product and this_product['quantityOnHand'] < desired_quantity:
+                return False
+
+        # If there was sufficient stock was available for all products the order will be executed.
+        return True
