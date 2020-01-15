@@ -26,5 +26,6 @@ class Restock(Resource):
             "restock_order_created": p_id
         }
 
-    def get(self):
+    @staticmethod
+    def get():
         return {"current_restock_orders": RESTOCK_ORDER_IDS}
